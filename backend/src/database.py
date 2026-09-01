@@ -16,18 +16,22 @@ def init_db():
     SQLModel.metadata.create_all(engine)
     print("Database initialized successfully")
 
-    # Creating a default user
     default_email = "test@test.com"
     default_password = "test"
+
+    # Génération d'un hash bcrypt propre
+    salt = bcrypt.gensalt()
+    new_hashed_password = bcrypt.hashpw(default_password.encode("utf-8"), salt).decode("utf-8")
 
     with Session(engine) as session:
         statement = select(User).where(User.email == default_email)
         user = session.exec(statement).first()
 
         if not user:
-            # Encodage du hash en chaîne pour stockage standard
-            hashed = bcrypt.hashpw(
-                default_password.encode("utf-8"), bcrypt.gensalt()
-            ).decode("utf-8")
-            session.add(User(email=default_email, hashed_password=hashed))
+            session.add(User(email=default_email, hashed_password=new_hashed_password))
+            session.commit()
+        else:
+            # Force la mise à jour si le hash existant est corrompu/invalide
+            user.hashed_password = new_hashed_password
+            session.add(user)
             session.commit()

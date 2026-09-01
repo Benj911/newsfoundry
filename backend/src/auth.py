@@ -6,7 +6,7 @@ import bcrypt
 
 logger = logging.getLogger("uvicorn.error")
 
-SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-jwt-key-fallback-2026")
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-jwt-key-prod-newsfoundry-2026")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -23,8 +23,8 @@ def verify_password(plain_password: str, hashed_password: str | bytes | memoryvi
             return False
 
         return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_bytes)
-    except Exception as e:
-        logger.error(f"Erreur lors de la vérification du mot de passe : {e}")
+    except Exception as exc:
+        logger.error(f"Erreur de vérification bcrypt : {exc}")
         return False
 
 
