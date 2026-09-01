@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from sqlmodel import Session, select
 import uvicorn
 
@@ -18,10 +18,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NewsFoundry API", lifespan=lifespan)
 
-# Autoriser les requêtes cross-origin (Next.js sur Vercel et en local)
+# Autoriser les requêtes cross-origin
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Ou restreindre aux domaines exacts Vercel / localhost
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,7 +29,7 @@ app.add_middleware(
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
 
 
