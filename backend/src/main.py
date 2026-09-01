@@ -18,10 +18,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="NewsFoundry API", lifespan=lifespan)
 
-# Autoriser les requêtes cross-origin
+# Autoriser localhost et tous les sous-domaines Vercel
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
