@@ -1,10 +1,15 @@
 import os
-from models import User
-from sqlmodel import SQLModel, Session, create_engine, select
 import bcrypt
+from sqlmodel import SQLModel, Session, create_engine, select
+from models import User
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, echo=True)
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
 
 
 def init_db():
@@ -20,12 +25,9 @@ def init_db():
         user = session.exec(statement).first()
 
         if not user:
-            session.add(
-                User(
-                    email=default_email,
-                    hashed_password=bcrypt.hashpw(
-                        default_password.encode("utf-8"), bcrypt.gensalt()
-                    ),
-                )
-            )
+            # Encodage du hash en chaîne pour stockage standard
+            hashed = bcrypt.hashpw(
+                default_password.encode("utf-8"), bcrypt.gensalt()
+            ).decode("utf-8")
+            session.add(User(email=default_email, hashed_password=hashed))
             session.commit()

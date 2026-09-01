@@ -1,8 +1,41 @@
-from database import init_db
-from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from sqlmodel import Session, select
 import uvicorn
 
-app = FastAPI()
+from database import init_db, get_session
+from models import User
+from auth import verify_password, create_access_token
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="NewsFoundry API", lifespan=lifespan)
+
+# Autoriser les requêtes cross-origin (Next.js sur Vercel et en local)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Ou restreindre aux domaines exacts Vercel / localhost
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
 
 
 @app.get("/")
@@ -10,7 +43,20 @@ async def hello():
     return {"message": "👋"}
 
 
-if __name__ == "__main__":
-    init_db()
+@app.post("/login", response_model=LoginResponse)
+async def login(credentials: LoginRequest, session: Session = Depends(get_session)):
+    statement = select(User).where(User.email == credentials.email)
+    user = session.exec(statement).first()
 
+    if not user or not verify_password(credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Identifiants incorrects",
+        )
+
+    token = create_access_token(data={"sub": user.email, "user_id": user.id})
+    return LoginResponse(access_token=token)
+
+
+if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
