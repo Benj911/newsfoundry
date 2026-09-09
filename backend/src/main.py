@@ -6,18 +6,14 @@ from sqlmodel import Session, select
 import uvicorn
 
 from database import init_db, get_session
-from models import User
-from auth import verify_password, create_access_token
-
-from fastapi import Depends
-from models import Chat
-from auth import get_current_user_id
+from models import User, Chat
+from auth import verify_password, create_access_token, get_current_user_id
+from agent import agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
     yield
-
 
 app = FastAPI(title="NewsFoundry API", lifespan=lifespan)
 
@@ -29,21 +25,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 class LoginRequest(BaseModel):
     email: str
     password: str
-
 
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+class MessageRequest(BaseModel):
+    content: str
 
 @app.get("/")
 async def hello():
     return {"message": "👋"}
-
 
 @app.post("/login", response_model=LoginResponse)
 async def login(credentials: LoginRequest, session: Session = Depends(get_session)):
@@ -58,9 +53,6 @@ async def login(credentials: LoginRequest, session: Session = Depends(get_sessio
 
     token = create_access_token(data={"sub": user.email, "user_id": user.id})
     return LoginResponse(access_token=token)
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 @app.post("/chats")
 async def create_chat(user_id: int = Depends(get_current_user_id), session: Session = Depends(get_session)):
@@ -77,9 +69,6 @@ async def get_chat(chat_id: int, user_id: int = Depends(get_current_user_id), se
         raise HTTPException(status_code=404, detail="Chat introuvable")
     return {"id": chat.id, "messages": chat.messages}
 
-class MessageRequest(BaseModel):
-    content: str
-
 @app.post("/chats/{chat_id}/messages")
 async def send_message(
     chat_id: int, 
@@ -91,18 +80,15 @@ async def send_message(
     if not chat or chat.user_id != user_id:
         raise HTTPException(status_code=404, detail="Chat introuvable")
     
-    # 1. Sauvegarder le message de l'utilisateur (réassignation pour forcer l'update SQL)
     updated_messages = list(chat.messages)
     updated_messages.append({"role": "user", "content": message.content})
     
-    # 2. Interroger PydanticAI de manière asynchrone
     try:
         result = await agent.run(message.content)
         ai_response = result.data
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de l'IA: {str(e)}")
 
-    # 3. Sauvegarder la réponse de l'IA
     updated_messages.append({"role": "assistant", "content": ai_response})
     chat.messages = updated_messages
     
@@ -111,3 +97,6 @@ async def send_message(
     session.refresh(chat)
     
     return {"reply": ai_response, "messages": chat.messages}
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
