@@ -2,7 +2,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models.mistral import MistralModel
 
 # L'API key est lue automatiquement depuis la variable d'environnement MISTRAL_API_KEY
-model = MistralModel("ministral-8b")
+model = MistralModel("ministral-8b-2512")
 
 # Définition du prompt système selon les consignes
 system_prompt = (
