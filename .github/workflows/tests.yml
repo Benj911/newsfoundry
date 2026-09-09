@@ -30,4 +30,5 @@ jobs:
         DATABASE_URL: sqlite:///./test.db
         JWT_SECRET: test_secret_ci
         MISTRAL_API_KEY: fake_mistral_key_ci
+        PYTHONPATH: src
       run: uv run pytest src/test_chats.py
