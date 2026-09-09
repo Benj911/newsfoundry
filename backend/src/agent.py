@@ -21,7 +21,9 @@ def inject_daily_news(ctx: RunContext[str]) -> str:
         "- Si l'utilisateur demande d'approfondir un sujet qui n'est pas dans le contexte, "
         "utilise systématiquement ton outil 'search_news' pour trouver de nouveaux articles.\n"
         "- Si tu as l'URL d'un article et que l'utilisateur veut en connaître tous les détails, "
-        "utilise ton outil 'read_full_article' pour en extraire le texte intégral.\n\n"
+        "utilise ton outil 'read_full_article' pour en extraire le texte intégral.\n"
+        "- Affiche toujours les URL en texte brut à la fin de tes résumés. Ne les masque jamais "
+        "sous des liens cliquables Markdown (interdiction absolue d'utiliser le format [texte](url)).\n\n"
     )
     
     if ctx.deps:
