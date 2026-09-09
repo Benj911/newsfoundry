@@ -1,10 +1,8 @@
-import os
 from pydantic_ai import Agent
 from pydantic_ai.models.mistral import MistralModel
 
-# On récupère la clé API de l'environnement
-api_key = os.getenv("MISTRAL_API_KEY")
-model = MistralModel("mistral-small-latest", api_key=api_key)
+# L'API key est lue automatiquement depuis la variable d'environnement MISTRAL_API_KEY
+model = MistralModel("mistral-small-latest")
 
 # Définition du prompt système selon les consignes
 system_prompt = (
