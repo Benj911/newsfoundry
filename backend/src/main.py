@@ -62,6 +62,19 @@ async def create_chat(user_id: int = Depends(get_current_user_id), session: Sess
     session.refresh(new_chat)
     return {"chat_id": new_chat.id}
 
+@app.get("/chats")
+async def list_chats(user_id: int = Depends(get_current_user_id), session: Session = Depends(get_session)):
+    statement = select(Chat).where(Chat.user_id == user_id)
+    chats = session.exec(statement).all()
+    # On renvoie l'ID et un aperçu (le premier message) pour le menu
+    return [
+        {
+            "id": c.id, 
+            "preview": c.messages[0]["content"] if c.messages else "Nouvelle discussion"
+        } 
+        for c in chats
+    ]
+
 @app.get("/chats/{chat_id}")
 async def get_chat(chat_id: int, user_id: int = Depends(get_current_user_id), session: Session = Depends(get_session)):
     chat = session.get(Chat, chat_id)
