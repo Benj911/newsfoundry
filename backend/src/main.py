@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlmodel import Session, select
 import uvicorn
+import os
+import httpx
 
 from database import init_db, get_session
 from models import User, Chat
@@ -24,6 +26,34 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+async def fetch_daily_news() -> str:
+    api_key = os.getenv("WORLD_NEWS_API_KEY")
+    if not api_key:
+        print("Attention: WORLD_NEWS_API_KEY manquante")
+        return ""
+    
+    try:
+        # Appel à l'API (on filtre pour avoir la France)
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://api.worldnewsapi.com/top-news?source-country=fr&language=fr",
+                headers={"x-api-key": api_key}
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            news_context = ""
+            for top in data.get("top_news", []):
+                for article in top.get("news", [])[:5]: 
+                    title = article.get("title", "")
+                    summary = article.get("summary", "")
+                    news_context += f"- {title} : {summary}\n"
+            
+            return news_context
+    except Exception as e:
+        print(f"Erreur API News: {e}")
+        return ""
 
 class LoginRequest(BaseModel):
     email: str
@@ -56,7 +86,11 @@ async def login(credentials: LoginRequest, session: Session = Depends(get_sessio
 
 @app.post("/chats")
 async def create_chat(user_id: int = Depends(get_current_user_id), session: Session = Depends(get_session)):
-    new_chat = Chat(user_id=user_id, messages=[])
+    # On va chercher les actus au moment de la création de la discussion
+    news_context = await fetch_daily_news()
+    
+    # On sauvegarde ce contexte figé dans la base de données
+    new_chat = Chat(user_id=user_id, messages=[], system_prompt=news_context)
     session.add(new_chat)
     session.commit()
     session.refresh(new_chat)
@@ -66,7 +100,6 @@ async def create_chat(user_id: int = Depends(get_current_user_id), session: Sess
 async def list_chats(user_id: int = Depends(get_current_user_id), session: Session = Depends(get_session)):
     statement = select(Chat).where(Chat.user_id == user_id)
     chats = session.exec(statement).all()
-    # On renvoie l'ID et un aperçu (le premier message) pour le menu
     return [
         {
             "id": c.id, 
@@ -97,7 +130,8 @@ async def send_message(
     updated_messages.append({"role": "user", "content": message.content})
     
     try:
-        result = await agent.run(message.content)
+        # On passe le system_prompt de la BDD à l'agent Mistral via `deps` !
+        result = await agent.run(message.content, deps=chat.system_prompt)
         ai_response = result.output
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de l'IA: {str(e)}")

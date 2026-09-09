@@ -7,6 +7,8 @@ class User(SQLModel, table=True):
     hashed_password: str
 
 class Chat(SQLModel, table=True):
-    id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", index=True)
-    messages: List[Dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    messages: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    # NOUVEAU : on stocke le contexte d'actualité figé au moment de la création
+    system_prompt: str | None = Field(default="")
