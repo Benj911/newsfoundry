@@ -3,7 +3,7 @@ import httpx
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.mistral import MistralModel
 
-model = MistralModel("minimistral-8b-2512")
+model = MistralModel("ministral-8b-2512")
 
 agent = Agent(
     model,
