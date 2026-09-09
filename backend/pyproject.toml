@@ -10,5 +10,7 @@ dependencies = [
     "sqlmodel>=0.0.14",
     "psycopg2-binary>=2.9.9",
     "bcrypt>=4.3.0",
-    "pyjwt>=2.8.0"
+    "pyjwt>=2.8.0",
+    "pydantic-ai>=2.27.1",
+    "mistralai>=2.9.4",
 ]
