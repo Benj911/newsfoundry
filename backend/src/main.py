@@ -98,7 +98,7 @@ async def send_message(
     
     try:
         result = await agent.run(message.content)
-        ai_response = result.data
+        ai_response = result.output
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de l'IA: {str(e)}")
 
