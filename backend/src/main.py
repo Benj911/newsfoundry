@@ -126,12 +126,21 @@ async def send_message(
     if not chat or chat.user_id != user_id:
         raise HTTPException(status_code=404, detail="Chat introuvable")
     
+    # 1. On prépare un résumé de l'historique récent (les 4 derniers messages) pour donner du contexte à l'IA
+    history_text = "Historique récent de la discussion :\n"
+    for msg in chat.messages[-4:]:
+        role = "Utilisateur" if msg["role"] == "user" else "Assistant"
+        history_text += f"{role}: {msg['content']}\n"
+    
+    # 2. On combine l'historique avec le nouveau message
+    full_query = f"{history_text}\n\nNouveau message de l'utilisateur : {message.content}"
+    
     updated_messages = list(chat.messages)
     updated_messages.append({"role": "user", "content": message.content})
     
     try:
-        # On passe le system_prompt de la BDD à l'agent Mistral via `deps` !
-        result = await agent.run(message.content, deps=chat.system_prompt)
+        # 3. L'agent reçoit enfin la mémoire complète !
+        result = await agent.run(full_query, deps=chat.system_prompt)
         ai_response = result.output
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de l'IA: {str(e)}")
