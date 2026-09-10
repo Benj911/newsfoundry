@@ -3,8 +3,14 @@ import httpx
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.mistral import MistralModel
 
-model = MistralModel("ministral-8b-2512")
+# On importe notre nouveau modèle de sortie structurée
+from models import PressReviewOutput
 
+model = MistralModel("open-mistral-nemo")
+
+# ==========================================
+# AGENT 1 : L'agent de chat interactif
+# ==========================================
 agent = Agent(
     model,
     deps_type=str
@@ -99,10 +105,25 @@ async def read_full_article(url: str) -> str:
             text = data.get("text", "")
             
             if not text:
-                return "Le texte de cet article n'a pas pu être extrait (paywall ou format non supporté)."
+                return "Le texte de cet article n'a pas pu être extrait."
                 
-            # On coupe le texte à 4000 caractères pour ne pas saturer la mémoire du LLM
             return f"Titre: {title}\n\nContenu:\n{text[:4000]}..."
 
     except Exception as error:
         return f"Erreur technique lors de l'extraction de l'article : {str(error)}"
+
+# ==========================================
+# AGENT 2 : L'agent de revue de presse
+# ==========================================
+press_review_agent = Agent(
+    model,
+    result_type=PressReviewOutput,
+    system_prompt=(
+        "Tu es un journaliste rédacteur en chef expert. Ton rôle est de lire "
+        "un historique de discussion entre un utilisateur et un assistant IA, "
+        "et de générer une revue de presse structurée sur un sujet précis demandé.\n"
+        "Tu dois extraire une synthèse générale de l'évolution du sujet, et lister "
+        "précisément chaque article mentionné dans l'historique avec son résumé.\n"
+        "Tu réponds UNIQUEMENT via le format JSON strict demandé."
+    )
+)

@@ -11,6 +11,8 @@ from database import init_db, get_session
 from models import User, Chat
 from auth import verify_password, create_access_token, get_current_user_id
 from agent import agent
+from models import PressReviewOutput
+from agent import press_review_agent
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -153,6 +155,66 @@ async def send_message(
     session.refresh(chat)
     
     return {"reply": ai_response, "messages": chat.messages}
+
+class PressReviewRequest(BaseModel):
+    topic: str
+
+@app.post("/chats/{chat_id}/press-reviews")
+async def generate_press_review(
+    chat_id: int, 
+    request: PressReviewRequest, 
+    user_id: int = Depends(get_current_user_id), 
+    session: Session = Depends(get_session)
+):
+    chat = session.get(Chat, chat_id)
+    if not chat or chat.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Chat introuvable")
+
+    # 1. On compile tout l'historique pour le donner à l'agent
+    history_text = f"Sujet de la revue de presse à générer : {request.topic}\n\n"
+    history_text += "Voici l'historique de la conversation :\n"
+    for msg in chat.messages:
+        role = "Utilisateur" if msg["role"] == "user" else "Assistant"
+        history_text += f"{role}: {msg['content']}\n"
+
+    try:
+        # 2. On lance l'agent spécialisé (sans outils).
+        result = await press_review_agent.run(history_text)
+        
+        # Astuce technique : on convertit le modèle Pydantic de retour en dictionnaire classique
+        # (Si `result.data` plante, remplace par `result.output.model_dump()`)
+        review_data = result.data.model_dump() if hasattr(result, 'data') else result.output.model_dump()
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur IA Revue de Presse: {str(e)}")
+
+    # 3. On sauvegarde la revue de presse dans le Chat
+    updated_reviews = list(chat.press_reviews)
+    updated_reviews.append(review_data)
+    chat.press_reviews = updated_reviews
+    
+    session.add(chat)
+    session.commit()
+    session.refresh(chat)
+    
+    return review_data
+
+@app.get("/press-reviews")
+async def get_all_press_reviews(user_id: int = Depends(get_current_user_id), session: Session = Depends(get_session)):
+    """Récupère toutes les revues de presse de toutes les discussions de l'utilisateur."""
+    statement = select(Chat).where(Chat.user_id == user_id)
+    chats = session.exec(statement).all()
+    
+    all_reviews = []
+    for chat in chats:
+        if chat.press_reviews:
+            for review in chat.press_reviews:
+                # On ajoute l'ID du chat pour que le front sache d'où vient la revue
+                review_with_context = dict(review)
+                review_with_context["chat_id"] = chat.id
+                all_reviews.append(review_with_context)
+                
+    return all_reviews
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
