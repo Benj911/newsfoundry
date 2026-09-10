@@ -1,10 +1,18 @@
 import os
 import httpx
+from dataclasses import dataclass
+from sqlmodel import Session
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.mistral import MistralModel
 
-# On importe notre nouveau modèle de sortie structurée
-from models import PressReviewOutput
+from models import PressReviewOutput, Chat
+
+# Structure pour injecter la base de données et l'ID du chat dans l'agent
+@dataclass
+class AgentDeps:
+    system_prompt_context: str
+    session: Session
+    chat_id: int
 
 model = MistralModel("open-mistral-nemo")
 
@@ -13,11 +21,11 @@ model = MistralModel("open-mistral-nemo")
 # ==========================================
 agent = Agent(
     model,
-    deps_type=str
+    deps_type=AgentDeps
 )
 
 @agent.system_prompt
-def inject_daily_news(ctx: RunContext[str]) -> str:
+def inject_daily_news(ctx: RunContext[AgentDeps]) -> str:
     base_prompt = (
         "Tu es l'assistant IA de NewsFoundry. Ton rôle est d'analyser l'actualité "
         "et de répondre aux questions des utilisateurs de manière claire, concise et sourcée, "
@@ -29,21 +37,17 @@ def inject_daily_news(ctx: RunContext[str]) -> str:
         "- Si tu as l'URL d'un article et que l'utilisateur veut en connaître tous les détails, "
         "utilise ton outil 'read_full_article' pour en extraire le texte intégral.\n"
         "- Affiche toujours les URL en texte brut à la fin de tes résumés. Ne les masque jamais "
-        "sous des liens cliquables Markdown (interdiction absolue d'utiliser le format [texte](url)).\n\n"
+        "sous des liens cliquables Markdown.\n\n"
     )
     
-    if ctx.deps:
-        return base_prompt + "Contexte des actualités du jour :\n" + ctx.deps
+    if ctx.deps.system_prompt_context:
+        return base_prompt + "Contexte des actualités du jour :\n" + ctx.deps.system_prompt_context
         
     return base_prompt
 
 @agent.tool_plain
 async def search_news(query: str) -> str:
-    """Recherche des articles de presse récents en français sur un sujet précis.
-
-    Args:
-        query: Le sujet, mot-clé ou entité à rechercher (ex: 'grève transports', 'SpaceX', 'budget').
-    """
+    """Recherche des articles de presse récents en français sur un sujet précis."""
     api_key = os.getenv("WORLD_NEWS_API_KEY")
     if not api_key:
         return "Impossible d'effectuer la recherche : clé API manquante."
@@ -52,11 +56,7 @@ async def search_news(query: str) -> str:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://api.worldnewsapi.com/search-news",
-                params={
-                    "text": query,
-                    "language": "fr",
-                    "number": 3
-                },
+                params={"text": query, "language": "fr", "number": 3},
                 headers={"x-api-key": api_key},
                 timeout=10.0
             )
@@ -77,15 +77,23 @@ async def search_news(query: str) -> str:
             return "\n\n".join(formatted_articles)
 
     except Exception as error:
-        return f"Erreur technique lors de la recherche d'articles : {str(error)}"
+        return f"Erreur technique lors de la recherche : {str(error)}"
 
-@agent.tool_plain
-async def read_full_article(url: str) -> str:
-    """Extrait le texte intégral d'un article de presse à partir de son URL.
+@agent.tool
+async def read_full_article(ctx: RunContext[AgentDeps], url: str) -> str:
+    """Extrait le texte intégral d'un article de presse à partir de son URL et le mémorise."""
+    # 1. Sauvegarde de l'URL dans la base de données
+    session = ctx.deps.session
+    chat = session.get(Chat, ctx.deps.chat_id)
+    if chat:
+        loaded = list(chat.loaded_articles) if chat.loaded_articles else []
+        if url not in loaded:
+            loaded.append(url)
+            chat.loaded_articles = loaded
+            session.add(chat)
+            session.commit()
 
-    Args:
-        url: L'URL exacte de l'article à lire.
-    """
+    # 2. Extraction du texte
     api_key = os.getenv("WORLD_NEWS_API_KEY")
     if not api_key:
         return "Impossible d'extraire l'article : clé API manquante."
@@ -110,7 +118,7 @@ async def read_full_article(url: str) -> str:
             return f"Titre: {title}\n\nContenu:\n{text[:4000]}..."
 
     except Exception as error:
-        return f"Erreur technique lors de l'extraction de l'article : {str(error)}"
+        return f"Erreur technique lors de l'extraction : {str(error)}"
 
 # ==========================================
 # AGENT 2 : L'agent de revue de presse
@@ -120,10 +128,10 @@ press_review_agent = Agent(
     output_type=PressReviewOutput,
     system_prompt=(
         "Tu es un journaliste rédacteur en chef expert. Ton rôle est de lire "
-        "un historique de discussion entre un utilisateur et un assistant IA, "
-        "et de générer une revue de presse structurée sur un sujet précis demandé.\n"
-        "Tu dois extraire une synthèse générale de l'évolution du sujet, et lister "
-        "précisément chaque article mentionné dans l'historique avec son résumé.\n"
+        "un historique de discussion et le contenu d'articles sources fournis en contexte, "
+        "puis de générer une revue de presse structurée sur le sujet demandé.\n"
+        "Tu dois extraire une synthèse générale précise, et lister les articles "
+        "pertinents avec un résumé enrichi par les détails des textes sources.\n"
         "Tu réponds UNIQUEMENT via le format JSON strict demandé."
     )
 )

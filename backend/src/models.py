@@ -1,6 +1,7 @@
 from typing import Optional, List
 from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
 from sqlmodel import SQLModel, Field, Column, JSON
+from sqlalchemy import Column, JSON
 
 # --- SCHÉMAS PYDANTIC POUR LA SORTIE STRUCTURÉE DE L'IA ---
 class ArticleSummary(PydanticBaseModel):
@@ -21,7 +22,10 @@ class User(SQLModel, table=True):
 class Chat(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
+    
+    system_prompt: str = ""
     messages: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
-    system_prompt: str | None = Field(default="")
-    # NOUVEAU : on stocke les revues de presse générées sous forme de liste de JSON
     press_reviews: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    
+    # NOUVEAU : Historique des URL lues par l'outil de l'agent
+    loaded_articles: list[str] = Field(default_factory=list, sa_column=Column(JSON))
