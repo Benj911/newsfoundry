@@ -117,7 +117,7 @@ async def read_full_article(url: str) -> str:
 # ==========================================
 press_review_agent = Agent(
     model,
-    result_type=PressReviewOutput,
+    output_type=PressReviewOutput,
     system_prompt=(
         "Tu es un journaliste rédacteur en chef expert. Ton rôle est de lire "
         "un historique de discussion entre un utilisateur et un assistant IA, "
