@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, Copy } from "lucide-react";
+import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://newsfoundry-production-35c3.up.railway.app";
@@ -14,7 +14,6 @@ export default function ChatApplication() {
   const [messages, setMessages] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Nouveaux états pour l'Étape 7
   const [activeTab, setActiveTab] = useState<'chat' | 'reviews'>('chat');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [reviewTopic, setReviewTopic] = useState("");
@@ -136,6 +135,7 @@ export default function ChatApplication() {
         await fetchAllReviews(token);
         setIsModalOpen(false);
         setReviewTopic("");
+        setActiveChat(null); // Retour à l'accueil pour voir les onglets
         setActiveTab('reviews');
       }
     } catch (error) {
@@ -177,14 +177,8 @@ export default function ChatApplication() {
       {/* ZONE PRINCIPALE */}
       <main className="flex-1 flex flex-col relative">
         <header className="h-20 bg-white flex items-center px-8 border-b border-gray-200 justify-between">
-          <div className="flex items-center gap-4">
-            {activeChat && (
-              <button onClick={() => {setActiveChat(null); setMessages([]);}} className="text-gray-400 hover:text-gray-600 mr-2">
-                <ArrowLeft size={20} />
-              </button>
-            )}
-            
-            {/* ONGLETS (Chat / Revue de presse) */}
+          {!activeChat ? (
+            // ACCUEIL : Affichage des onglets
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button 
                 onClick={() => setActiveTab('chat')}
@@ -199,10 +193,21 @@ export default function ChatApplication() {
                 <FileText size={16} /> Revue de presse
               </button>
             </div>
-          </div>
+          ) : (
+            // DISCUSSION ACTIVE : Bouton retour et titre
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => {setActiveChat(null); setMessages([]); setActiveTab('chat');}} 
+                className="text-gray-400 hover:text-gray-600 mr-2 flex items-center gap-2 text-sm font-medium"
+              >
+                <ArrowLeft size={18} /> Retour
+              </button>
+              <h2 className="font-semibold text-gray-800">Nouvelle discussion</h2>
+            </div>
+          )}
 
-          {/* BOUTON GÉNÉRER */}
-          {activeChat && activeTab === 'chat' && (
+          {/* BOUTON GÉNÉRER (Uniquement dans une discussion) */}
+          {activeChat && (
             <button 
               onClick={() => setIsModalOpen(true)}
               className="flex items-center gap-2 bg-[#7C3AED] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#6D28D9] transition-colors shadow-sm"
@@ -221,7 +226,7 @@ export default function ChatApplication() {
                 <Bot size={48} className="text-[#7C3AED] mx-auto mb-6" />
                 <h1 className="text-2xl font-semibold text-[#7C3AED] mb-4">Assistant Revue de Presse IA</h1>
                 <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-md mx-auto">
-                  Posez-moi des questions sur l'actualité récente ou demandez-moi de générer une revue de presse.
+                  Ouvrez ou créez une discussion, posez des questions sur l'actualité, puis générez une revue de presse.
                 </p>
               </div>
             ) : (
@@ -292,7 +297,7 @@ export default function ChatApplication() {
           )}
         </div>
 
-        {/* BARRE DE SAISIE (visible uniquement sur l'onglet chat) */}
+        {/* BARRE DE SAISIE */}
         {activeTab === 'chat' && (
           <div className="p-6 bg-transparent absolute bottom-0 w-full">
             <div className="max-w-4xl mx-auto relative flex gap-2">
@@ -330,17 +335,17 @@ export default function ChatApplication() {
             
             <div className="text-center mb-8">
               <h3 className="text-xl font-bold text-gray-900">Générer une revue de presse</h3>
-              <p className="text-sm text-gray-500 mt-1">Donner un titre/thème à votre revue de presse</p>
+              <p className="text-sm text-gray-500 mt-1">Donner un titre à votre revue de presse</p>
             </div>
 
             <div className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Thème de la revue de presse</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Titre de la revue de presse</label>
                 <input 
                   type="text"
                   value={reviewTopic}
                   onChange={(e) => setReviewTopic(e.target.value)}
-                  placeholder="Ex: L'intelligence artificielle en 2026..."
+                  placeholder="Ex: Actualités Politiques - Semaine 39"
                   className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#7C3AED] text-sm"
                 />
               </div>
