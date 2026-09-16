@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X } from "lucide-react";
+import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://newsfoundry-production-35c3.up.railway.app";
@@ -19,6 +19,9 @@ export default function ChatApplication() {
   const [reviewTopic, setReviewTopic] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [pressReviews, setPressReviews] = useState<any[]>([]);
+  
+  // NOUVEAU : État pour gérer les erreurs
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -31,17 +34,22 @@ export default function ChatApplication() {
     fetchAllReviews(storedToken);
   }, []);
 
+  // NOUVEAU : Fonction utilitaire pour afficher une erreur pendant 5 secondes
+  const showError = (message: string) => {
+    setErrorMsg(message);
+    setTimeout(() => setErrorMsg(null), 5000);
+  };
+
   const fetchChatsList = async (authToken: string) => {
     try {
       const res = await fetch(`${API_URL}/chats`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setChatsList(data);
-      }
-    } catch (error) {
-      console.error("Erreur chargement historique:", error);
+      if (!res.ok) throw new Error("Impossible de charger l'historique des discussions.");
+      const data = await res.json();
+      setChatsList(data);
+    } catch (error: any) {
+      showError(error.message);
     }
   };
 
@@ -50,12 +58,11 @@ export default function ChatApplication() {
       const res = await fetch(`${API_URL}/press-reviews`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setPressReviews(data);
-      }
-    } catch (error) {
-      console.error("Erreur chargement revues:", error);
+      if (!res.ok) throw new Error("Impossible de charger les revues de presse.");
+      const data = await res.json();
+      setPressReviews(data);
+    } catch (error: any) {
+      showError(error.message);
     }
   };
 
@@ -66,12 +73,12 @@ export default function ChatApplication() {
       const res = await fetch(`${API_URL}/chats/${chatId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(data.messages);
-      }
-    } catch (error) {
-      console.error("Erreur chargement discussion:", error);
+      if (!res.ok) throw new Error("Impossible d'ouvrir cette discussion.");
+      const data = await res.json();
+      setMessages(data.messages);
+    } catch (error: any) {
+      showError(error.message);
+      setActiveChat(null); // On remet à zéro si ça plante
     }
   };
 
@@ -91,6 +98,7 @@ export default function ChatApplication() {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` }
         });
+        if (!resCreate.ok) throw new Error("Impossible de créer une nouvelle discussion.");
         const dataCreate = await resCreate.json();
         currentChatId = dataCreate.chat_id;
         setActiveChat(currentChatId);
@@ -105,13 +113,19 @@ export default function ChatApplication() {
         body: JSON.stringify({ content: userMessage })
       });
 
-      if (resMessage.ok) {
-        const dataMessage = await resMessage.json();
-        setMessages(dataMessage.messages);
-        fetchChatsList(token);
+      if (!resMessage.ok) {
+        const errData = await resMessage.json().catch(() => ({}));
+        throw new Error(errData.detail || "L'IA n'a pas pu répondre à votre message.");
       }
-    } catch (error) {
-      console.error("Erreur d'envoi:", error);
+      
+      const dataMessage = await resMessage.json();
+      setMessages(dataMessage.messages);
+      fetchChatsList(token);
+      
+    } catch (error: any) {
+      showError(error.message);
+      // Optionnel : Retirer le message de l'utilisateur de l'UI si l'envoi a planté
+      setMessages(prev => prev.slice(0, -1)); 
     } finally {
       setIsLoading(false);
     }
@@ -131,15 +145,19 @@ export default function ChatApplication() {
         body: JSON.stringify({ topic: reviewTopic })
       });
 
-      if (res.ok) {
-        await fetchAllReviews(token);
-        setIsModalOpen(false);
-        setReviewTopic("");
-        setActiveChat(null); // Retour à l'accueil pour voir les onglets
-        setActiveTab('reviews');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.detail || "Erreur lors de la génération de la revue de presse.");
       }
-    } catch (error) {
-      console.error("Erreur génération revue:", error);
+
+      await fetchAllReviews(token);
+      setIsModalOpen(false);
+      setReviewTopic("");
+      setActiveChat(null);
+      setActiveTab('reviews');
+      
+    } catch (error: any) {
+      showError(error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -151,7 +169,19 @@ export default function ChatApplication() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-sans">
+    <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-sans relative">
+      
+      {/* NOUVEAU : BANNIÈRE D'ERREUR FLOTTANTE */}
+      {errorMsg && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-5">
+          <AlertCircle size={20} className="text-red-500 shrink-0" />
+          <span className="text-sm font-medium">{errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="ml-4 text-red-400 hover:text-red-700 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* SIDEBAR */}
       <aside className="w-64 bg-white flex flex-col border-r border-gray-200">
         <div className="p-6 text-[#7C3AED] font-bold flex items-center gap-2 text-lg uppercase tracking-wider border-b border-gray-100">
