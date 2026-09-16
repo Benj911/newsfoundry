@@ -20,8 +20,8 @@ export default function ChatApplication() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pressReviews, setPressReviews] = useState<any[]>([]);
   
-  // NOUVEAU : État pour gérer les erreurs
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // NOUVEAU : État pour gérer l'affichage des erreurs
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -34,10 +34,10 @@ export default function ChatApplication() {
     fetchAllReviews(storedToken);
   }, []);
 
-  // NOUVEAU : Fonction utilitaire pour afficher une erreur pendant 5 secondes
+  // Fonction utilitaire pour masquer l'erreur après 5 secondes
   const showError = (message: string) => {
-    setErrorMsg(message);
-    setTimeout(() => setErrorMsg(null), 5000);
+    setErrorMessage(message);
+    setTimeout(() => setErrorMessage(null), 5000);
   };
 
   const fetchChatsList = async (authToken: string) => {
@@ -45,11 +45,12 @@ export default function ChatApplication() {
       const res = await fetch(`${API_URL}/chats`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      if (!res.ok) throw new Error("Impossible de charger l'historique des discussions.");
-      const data = await res.json();
-      setChatsList(data);
-    } catch (error: any) {
-      showError(error.message);
+      if (res.ok) {
+        const data = await res.json();
+        setChatsList(data);
+      }
+    } catch (error) {
+      console.error("Erreur chargement historique:", error);
     }
   };
 
@@ -58,27 +59,32 @@ export default function ChatApplication() {
       const res = await fetch(`${API_URL}/press-reviews`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      if (!res.ok) throw new Error("Impossible de charger les revues de presse.");
-      const data = await res.json();
-      setPressReviews(data);
-    } catch (error: any) {
-      showError(error.message);
+      if (res.ok) {
+        const data = await res.json();
+        setPressReviews(data);
+      }
+    } catch (error) {
+      console.error("Erreur chargement revues:", error);
     }
   };
 
   const loadSpecificChat = async (chatId: number) => {
     setActiveChat(chatId);
     setActiveTab('chat');
+    setErrorMessage(null); // On réinitialise l'erreur au changement de chat
     try {
       const res = await fetch(`${API_URL}/chats/${chatId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error("Impossible d'ouvrir cette discussion.");
-      const data = await res.json();
-      setMessages(data.messages);
-    } catch (error: any) {
-      showError(error.message);
-      setActiveChat(null); // On remet à zéro si ça plante
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages);
+      } else {
+        throw new Error("Impossible de charger la discussion.");
+      }
+    } catch (error) {
+      console.error("Erreur chargement discussion:", error);
+      showError("Erreur lors du chargement de la discussion. Veuillez réessayer.");
     }
   };
 
@@ -89,6 +95,7 @@ export default function ChatApplication() {
     setInputText("");
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
     setIsLoading(true);
+    setErrorMessage(null);
 
     try {
       let currentChatId = activeChat;
@@ -98,7 +105,7 @@ export default function ChatApplication() {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` }
         });
-        if (!resCreate.ok) throw new Error("Impossible de créer une nouvelle discussion.");
+        if (!resCreate.ok) throw new Error("Erreur de création de discussion");
         const dataCreate = await resCreate.json();
         currentChatId = dataCreate.chat_id;
         setActiveChat(currentChatId);
@@ -113,19 +120,18 @@ export default function ChatApplication() {
         body: JSON.stringify({ content: userMessage })
       });
 
-      if (!resMessage.ok) {
-        const errData = await resMessage.json().catch(() => ({}));
-        throw new Error(errData.detail || "L'IA n'a pas pu répondre à votre message.");
+      if (resMessage.ok) {
+        const dataMessage = await resMessage.json();
+        setMessages(dataMessage.messages);
+        fetchChatsList(token);
+      } else {
+        throw new Error("Erreur lors de la réponse de l'IA");
       }
-      
-      const dataMessage = await resMessage.json();
-      setMessages(dataMessage.messages);
-      fetchChatsList(token);
-      
-    } catch (error: any) {
-      showError(error.message);
-      // Optionnel : Retirer le message de l'utilisateur de l'UI si l'envoi a planté
-      setMessages(prev => prev.slice(0, -1)); 
+    } catch (error) {
+      console.error("Erreur d'envoi:", error);
+      showError("Une erreur est survenue lors de la communication avec l'IA. Le serveur est peut-être surchargé.");
+      // On retire le message de l'utilisateur de l'UI si l'envoi a échoué (optionnel mais UX-friendly)
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
@@ -134,6 +140,7 @@ export default function ChatApplication() {
   const handleGenerateReview = async () => {
     if (!reviewTopic.trim() || !activeChat || !token) return;
     setIsGenerating(true);
+    setErrorMessage(null);
 
     try {
       const res = await fetch(`${API_URL}/chats/${activeChat}/press-reviews`, {
@@ -145,19 +152,19 @@ export default function ChatApplication() {
         body: JSON.stringify({ topic: reviewTopic })
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "Erreur lors de la génération de la revue de presse.");
+      if (res.ok) {
+        await fetchAllReviews(token);
+        setIsModalOpen(false);
+        setReviewTopic("");
+        setActiveChat(null);
+        setActiveTab('reviews');
+      } else {
+        throw new Error("Erreur lors de la génération");
       }
-
-      await fetchAllReviews(token);
+    } catch (error) {
+      console.error("Erreur génération revue:", error);
+      showError("La génération de la revue a échoué. L'article est peut-être trop long ou le service indisponible.");
       setIsModalOpen(false);
-      setReviewTopic("");
-      setActiveChat(null);
-      setActiveTab('reviews');
-      
-    } catch (error: any) {
-      showError(error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -169,14 +176,14 @@ export default function ChatApplication() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-sans relative">
+    <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-sans">
       
-      {/* NOUVEAU : BANNIÈRE D'ERREUR FLOTTANTE */}
-      {errorMsg && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-5">
-          <AlertCircle size={20} className="text-red-500 shrink-0" />
-          <span className="text-sm font-medium">{errorMsg}</span>
-          <button onClick={() => setErrorMsg(null)} className="ml-4 text-red-400 hover:text-red-700 transition-colors">
+      {/* NOUVEAU : ALERTE D'ERREUR VISUELLE */}
+      {errorMessage && (
+        <div className="absolute top-24 right-8 z-50 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-lg flex items-start gap-3 max-w-md animate-fade-in">
+          <AlertCircle size={20} className="shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm">{errorMessage}</div>
+          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600 transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -208,7 +215,6 @@ export default function ChatApplication() {
       <main className="flex-1 flex flex-col relative">
         <header className="h-20 bg-white flex items-center px-8 border-b border-gray-200 justify-between">
           {!activeChat ? (
-            // ACCUEIL : Affichage des onglets
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button 
                 onClick={() => setActiveTab('chat')}
@@ -224,7 +230,6 @@ export default function ChatApplication() {
               </button>
             </div>
           ) : (
-            // DISCUSSION ACTIVE : Bouton retour et titre
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => {setActiveChat(null); setMessages([]); setActiveTab('chat');}} 
@@ -236,7 +241,6 @@ export default function ChatApplication() {
             </div>
           )}
 
-          {/* BOUTON GÉNÉRER (Uniquement dans une discussion) */}
           {activeChat && (
             <button 
               onClick={() => setIsModalOpen(true)}
@@ -247,10 +251,8 @@ export default function ChatApplication() {
           )}
         </header>
 
-        {/* AFFICHAGE CONDITIONNEL : CHAT OU REVUES */}
         <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center bg-[#F3F4F6]">
           {activeTab === 'chat' ? (
-            // --- VUE CHAT ---
             !activeChat && messages.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm p-10 max-w-2xl w-full text-center mt-10">
                 <Bot size={48} className="text-[#7C3AED] mx-auto mb-6" />
@@ -285,7 +287,6 @@ export default function ChatApplication() {
               </div>
             )
           ) : (
-            // --- VUE REVUES DE PRESSE ---
             <div className="w-full max-w-4xl">
               <h2 className="text-2xl font-semibold text-gray-800 mb-2">Revues de Presse</h2>
               <p className="text-gray-500 text-sm mb-8">Consultez et gérez vos revues de presse générées par l'IA</p>
@@ -327,7 +328,6 @@ export default function ChatApplication() {
           )}
         </div>
 
-        {/* BARRE DE SAISIE */}
         {activeTab === 'chat' && (
           <div className="p-6 bg-transparent absolute bottom-0 w-full">
             <div className="max-w-4xl mx-auto relative flex gap-2">
@@ -352,7 +352,6 @@ export default function ChatApplication() {
         )}
       </main>
 
-      {/* MODALE DE GÉNÉRATION */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl">
