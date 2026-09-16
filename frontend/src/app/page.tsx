@@ -129,7 +129,7 @@ export default function ChatApplication() {
       }
     } catch (error) {
       console.error("Erreur d'envoi:", error);
-      showError("Une erreur est survenue lors de la communication avec l'IA. Le serveur est peut-être surchargé.");
+      showError("Une erreur est survenue lors de la communication avec l'IA. Le serveur est peut-être surchargé, réessayez dans quelques instants.");
       // On retire le message de l'utilisateur de l'UI si l'envoi a échoué (optionnel mais UX-friendly)
       setMessages(prev => prev.slice(0, -1));
     } finally {
@@ -178,17 +178,6 @@ export default function ChatApplication() {
   return (
     <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-sans">
       
-      {/* NOUVEAU : ALERTE D'ERREUR VISUELLE */}
-      {errorMessage && (
-        <div className="absolute top-24 right-8 z-50 bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-lg flex items-start gap-3 max-w-md animate-fade-in">
-          <AlertCircle size={20} className="shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm">{errorMessage}</div>
-          <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600 transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-      )}
-
       {/* SIDEBAR */}
       <aside className="w-64 bg-white flex flex-col border-r border-gray-200">
         <div className="p-6 text-[#7C3AED] font-bold flex items-center gap-2 text-lg uppercase tracking-wider border-b border-gray-100">
@@ -213,6 +202,16 @@ export default function ChatApplication() {
 
       {/* ZONE PRINCIPALE */}
       <main className="flex-1 flex flex-col relative">
+        {/* ALERTE D'ERREUR VISUELLE (Centrée au-dessus de la barre de saisie) */}
+        {errorMessage && (
+          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-lg flex items-start gap-3 animate-fade-in">
+            <AlertCircle size={20} className="shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm">{errorMessage}</div>
+            <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600 transition-colors">
+              <X size={18} />
+            </button>
+          </div>
+        )}
         <header className="h-20 bg-white flex items-center px-8 border-b border-gray-200 justify-between">
           {!activeChat ? (
             <div className="flex bg-gray-100 rounded-lg p-1">
