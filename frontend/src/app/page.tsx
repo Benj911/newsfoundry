@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, AlertCircle } from "lucide-react";
+import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, AlertCircle, Calendar } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://newsfoundry-production-35c3.up.railway.app";
@@ -187,7 +187,6 @@ export default function ChatApplication() {
               className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${activeChat === chat.id ? 'bg-gray-50 border-l-4 border-l-[#803CDA]' : ''}`}
             >
               <div className="text-sm font-medium text-gray-700 truncate">{chat.preview || "Nouvelle discussion"}</div>
-              {/* Date seule sous l'aperçu */}
               <div className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString('fr-FR')}</div>
             </button>
           ))}
@@ -198,7 +197,7 @@ export default function ChatApplication() {
       </aside>
 
       {/* ZONE PRINCIPALE */}
-      <main className="flex-1 flex flex-col relative">
+      <main className="flex-1 flex flex-col relative h-screen overflow-hidden">
         
         {/* ALERTE D'ERREUR VISUELLE */}
         {errorMessage && (
@@ -211,7 +210,7 @@ export default function ChatApplication() {
           </div>
         )}
 
-        <header className="h-20 bg-white flex items-center px-8 border-b border-gray-200 justify-between">
+        <header className="h-20 bg-white flex items-center px-8 border-b border-gray-200 justify-between shrink-0">
           {!activeChat ? (
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button 
@@ -249,7 +248,8 @@ export default function ChatApplication() {
           )}
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center bg-[#F3F4F6]">
+        {/* ZONE DE DÉFILEMENT */}
+        <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center pb-28">
           {activeTab === 'chat' ? (
             !activeChat && messages.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm p-10 max-w-2xl w-full text-center mt-10">
@@ -260,7 +260,7 @@ export default function ChatApplication() {
                 </p>
               </div>
             ) : (
-              <div className="w-full max-w-4xl flex flex-col gap-6 pb-20">
+              <div className="w-full max-w-4xl flex flex-col gap-6">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex items-start gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-gray-800 text-white' : 'bg-transparent text-gray-500'}`}>
@@ -297,12 +297,19 @@ export default function ChatApplication() {
                 <div className="flex flex-col gap-6">
                   {pressReviews.map((review, idx) => (
                     <div key={idx} className="bg-white rounded-xl shadow-sm p-8 relative">
+                      {/* BOUTON COPIER ALIGNÉ AVEC LE TITRE */}
                       <button className="absolute top-8 right-8 bg-[#272930] text-white px-4 py-2 rounded text-sm hover:bg-gray-800 flex items-center gap-2">
                         Copier
                       </button>
-                      <h3 className="text-lg font-bold text-gray-900 uppercase tracking-wide mb-1">{review.title}</h3>
-                      <div className="text-xs text-gray-400 flex items-center gap-2 mb-6">
-                        <FileText size={14} /> ID Discussion : {review.chat_id}
+                      
+                      {/* TITRE : IBM Plex Sans, weight 400, 16px, #0A0A0A */}
+                      <h3 className="text-[16px] font-normal text-[#0A0A0A] uppercase tracking-wide pr-32 font-['IBM_Plex_Sans']">
+                        {review.title}
+                      </h3>
+                      
+                      {/* DATE : Inter, weight 400, 14px, #717182 */}
+                      <div className="text-[14px] font-normal text-[#717182] flex items-center gap-2 mt-1 mb-6 font-['Inter']">
+                        <Calendar size={14} /> {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </div>
                       
                       <div className="text-sm text-gray-700 leading-relaxed mb-6 font-medium">
@@ -326,8 +333,8 @@ export default function ChatApplication() {
           )}
         </div>
 
-        {/* BARRE DE SAISIE (Présente mais désactivée si on est sur l'onglet 'reviews') */}
-        <div className="p-6 bg-transparent absolute bottom-0 w-full">
+        {/* BARRE DE SAISIE FIXE ET OPAQUE AU FOND BLANC */}
+        <div className="p-6 bg-white border-t border-gray-200 shrink-0 w-full z-20">
           <div className="max-w-4xl mx-auto relative flex gap-2">
             <input 
               type="text" 

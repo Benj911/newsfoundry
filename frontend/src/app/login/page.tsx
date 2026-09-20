@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Bot } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -62,7 +63,7 @@ export default function LoginPage() {
       <div className="relative z-10 w-full max-w-[420px] rounded-2xl bg-white p-10 shadow-2xl">
         <div className="text-center">
           <h1 className="flex items-center justify-center gap-2 text-xl font-bold tracking-wider text-[#7c5cfc]">
-            NEWSFOUNDRY <span className="text-lg">🤖</span>
+            NEWSFOUNDRY <Bot size={20} /><span className="text-lg">🤖</span>
           </h1>
           <p className="mt-2 text-xs leading-relaxed text-gray-500">
             Connectez-vous pour accéder à votre assistant <br />
