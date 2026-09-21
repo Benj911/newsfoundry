@@ -1,4 +1,5 @@
 from typing import Optional, List
+from datetime import datetime, timezone
 from pydantic import BaseModel as PydanticBaseModel, Field as PydanticField
 from sqlmodel import SQLModel, Field, Column, JSON
 from sqlalchemy import Column, JSON
@@ -18,6 +19,9 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
     hashed_password: str
+    
+    # Horodatage
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class Chat(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
@@ -29,3 +33,7 @@ class Chat(SQLModel, table=True):
     
     # NOUVEAU : Historique des URL lues par l'outil de l'agent
     loaded_articles: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+
+    # NOUVEAU : Horodatage pour trier et afficher les dates
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -428,7 +428,7 @@ export default function ChatApplication() {
               onClick={() => setIsModalOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-sm flex items-center gap-1"
             >
-              Fermer <X size={16} />
+              Fermer
             </button>
             
             <div className="text-center mb-8">
@@ -443,7 +443,6 @@ export default function ChatApplication() {
                   type="text"
                   value={reviewTopic}
                   onChange={(e) => setReviewTopic(e.target.value)}
-                  placeholder="Ex: Actualités Politiques - Semaine 39"
                   className="w-full px-4 py-3 rounded-lg bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#803CDA] text-sm"
                 />
               </div>

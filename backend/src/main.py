@@ -6,6 +6,7 @@ from sqlmodel import Session, select
 import uvicorn
 import os
 import httpx
+from datetime import datetime, timezone
 
 from database import init_db, get_session
 from models import User, Chat, PressReviewOutput
@@ -117,9 +118,13 @@ async def send_message(
     full_query = f"{history_text}\n\nNouveau message : {message.content}"
     
     updated_messages = list(chat.messages)
-    updated_messages.append({"role": "user", "content": message.content})
+    # Ajout de l'heure pour le message utilisateur
+    updated_messages.append({
+        "role": "user", 
+        "content": message.content,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
     
-    # Injection du nouveau contexte (AgentDeps)
     deps = AgentDeps(system_prompt_context=chat.system_prompt, session=session, chat_id=chat.id)
     
     try:
@@ -128,8 +133,17 @@ async def send_message(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur de l'IA: {str(e)}")
 
-    updated_messages.append({"role": "assistant", "content": ai_response})
+    # Ajout de l'heure pour la réponse de l'IA
+    updated_messages.append({
+        "role": "assistant", 
+        "content": ai_response,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
     chat.messages = updated_messages
+    
+    # Mise à jour de l'horodatage global de la discussion
+    if hasattr(chat, "updated_at"):
+        chat.updated_at = datetime.now(timezone.utc)
     
     session.add(chat)
     session.commit()
@@ -155,7 +169,6 @@ async def generate_press_review(
         api_key = os.getenv("WORLD_NEWS_API_KEY")
         mistral_api_key = os.getenv("MISTRAL_API_KEY")
         
-        # 1. Extraction du texte complet des URL lues
         async with httpx.AsyncClient() as client:
             for url in chat.loaded_articles:
                 try:
@@ -172,7 +185,6 @@ async def generate_press_review(
                 except Exception as e:
                     print(f"Erreur extraction RAG pour {url}: {e}")
 
-        # 2. Création de l'index vectoriel et recherche des extraits pertinents
         if documents and mistral_api_key:
             Settings.embed_model = MistralAIEmbedding(api_key=mistral_api_key)
             index = VectorStoreIndex.from_documents(documents)
@@ -189,7 +201,6 @@ async def generate_press_review(
         role = "Utilisateur" if msg["role"] == "user" else "Assistant"
         history_text += f"{role}: {msg['content']}\n"
         
-    # On ajoute le fruit de notre recherche LlamaIndex au prompt final
     if rag_context:
         history_text += rag_context
 
@@ -198,6 +209,9 @@ async def generate_press_review(
         review_data = result.data.model_dump() if hasattr(result, 'data') else result.output.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur IA Revue de Presse: {str(e)}")
+
+    # Injection de la date exacte de génération de la revue
+    review_data["created_at"] = datetime.now(timezone.utc).isoformat()
 
     updated_reviews = list(chat.press_reviews)
     updated_reviews.append(review_data)
