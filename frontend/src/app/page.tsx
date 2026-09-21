@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, AlertCircle, Calendar } from "lucide-react";
+import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, AlertCircle, Calendar, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://newsfoundry-production-35c3.up.railway.app";
@@ -20,6 +20,7 @@ export default function ChatApplication() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [pressReviews, setPressReviews] = useState<any[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("token");
@@ -75,7 +76,12 @@ export default function ChatApplication() {
       });
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages);
+        // On associe une heure fictive ou actuelle si non présente
+        const formattedMessages = data.messages.map((m: any) => ({
+          ...m,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        }));
+        setMessages(formattedMessages);
       } else {
         throw new Error("Impossible de charger la discussion.");
       }
@@ -89,8 +95,9 @@ export default function ChatApplication() {
     if (!inputText.trim() || !token) return;
 
     const userMessage = inputText;
+    const currentTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     setInputText("");
-    setMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    setMessages(prev => [...prev, { role: "user", content: userMessage, time: currentTime }]);
     setIsLoading(true);
     setErrorMessage(null);
 
@@ -119,7 +126,11 @@ export default function ChatApplication() {
 
       if (resMessage.ok) {
         const dataMessage = await resMessage.json();
-        setMessages(dataMessage.messages);
+        const formattedMessages = dataMessage.messages.map((m: any) => ({
+          ...m,
+          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        }));
+        setMessages(formattedMessages);
         fetchChatsList(token);
       } else {
         throw new Error("Erreur lors de la réponse de l'IA");
@@ -166,13 +177,25 @@ export default function ChatApplication() {
     }
   };
 
+  const handleCopyReview = (review: any, index: number) => {
+    let textToCopy = `${review.title}\nDate : ${new Date().toLocaleDateString('fr-FR')}\n\nSynthèse générale :\n${review.general_summary}\n\n`;
+    if (review.articles) {
+      review.articles.forEach((art: any) => {
+        textToCopy += `- ${art.title} : ${art.summary}\n`;
+      });
+    }
+    navigator.clipboard.writeText(textToCopy);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 2000);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem("token");
     window.location.href = "/login";
   };
 
   return (
-    <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-sans">
+    <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-['Inter']">
       
       {/* SIDEBAR */}
       <aside className="w-64 bg-white flex flex-col border-r border-gray-200">
@@ -186,12 +209,12 @@ export default function ChatApplication() {
               onClick={() => loadSpecificChat(chat.id)}
               className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${activeChat === chat.id ? 'bg-gray-50 border-l-4 border-l-[#803CDA]' : ''}`}
             >
-              <div className="text-sm font-medium text-gray-700 truncate">{chat.preview || "Nouvelle discussion"}</div>
-              <div className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString('fr-FR')}</div>
+              <div className="text-[16px] font-normal text-[#2A2A31] truncate">{chat.preview || "Nouvelle discussion"}</div>
+              <div className="text-[12px] font-normal text-[#717182] mt-1">{new Date().toLocaleDateString('fr-FR')}</div>
             </button>
           ))}
         </div>
-        <button onClick={handleLogout} className="p-4 flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 border-t border-gray-200">
+        <button onClick={handleLogout} className="p-4 flex items-center gap-2 text-[14px] font-normal text-[#2A2A31] hover:text-gray-900 border-t border-gray-200">
           <LogOut size={16} /> Se déconnecter
         </button>
       </aside>
@@ -215,13 +238,13 @@ export default function ChatApplication() {
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button 
                 onClick={() => setActiveTab('chat')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'chat' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-[14px] transition-colors ${activeTab === 'chat' ? 'bg-white text-gray-800 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 font-normal'}`}
               >
                 <MessageSquare size={16} /> Chat
               </button>
               <button 
                 onClick={() => setActiveTab('reviews')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'reviews' ? 'bg-[#803CDA] text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-[14px] transition-colors ${activeTab === 'reviews' ? 'bg-[#803CDA] text-white shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 font-normal'}`}
               >
                 <FileText size={16} /> Revue de presse
               </button>
@@ -241,7 +264,7 @@ export default function ChatApplication() {
           {activeChat && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-[#803CDA] text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-[#6F32BE] transition-colors shadow-sm"
+              className="flex items-center gap-2 bg-[#803CDA] text-white px-4 py-2 rounded-md text-[16px] font-normal hover:bg-[#6F32BE] transition-colors shadow-sm"
             >
               <FileText size={16} /> Générer une revue de presse
             </button>
@@ -254,10 +277,26 @@ export default function ChatApplication() {
             !activeChat && messages.length === 0 ? (
               <div className="bg-white rounded-xl shadow-sm p-10 max-w-2xl w-full text-center mt-10">
                 <Bot size={48} className="text-[#803CDA] mx-auto mb-6" />
-                <h1 className="text-2xl font-semibold text-[#803CDA] mb-4">Assistant Revue de Presse IA</h1>
-                <p className="text-gray-500 text-sm mb-8 leading-relaxed max-w-md mx-auto">
-                  Ouvrez ou créez une discussion, posez des questions sur l'actualité, puis générez une revue de presse.
+                
+                {/* TITRE PRINCIPAL : IBM Plex Sans 32px 400 #803CDA */}
+                <h1 className="text-[32px] font-normal text-[#803CDA] mb-4 font-['IBM_Plex_Sans']">
+                  Assistant Revue de Presse IA
+                </h1>
+                
+                {/* TEXTE DESCRIPTIF : Inter 400 16px #838392 */}
+                <p className="text-[16px] font-normal text-[#838392] mb-8 leading-relaxed max-w-md mx-auto">
+                  Posez-moi des questions sur l'actualité récente ou demandez-moi de générer une revue de presse sur un sujet spécifique.
                 </p>
+
+                {/* EXEMPLES */}
+                <div className="text-left bg-gray-50 p-6 rounded-lg border border-gray-100 max-w-lg mx-auto">
+                  <div className="text-[14px] font-bold text-[#717182] mb-3">Exemples :</div>
+                  <ul className="space-y-2 text-[14px] font-normal text-[#717182]">
+                    <li>• "Quelles sont les dernières nouvelles en politique ?"</li>
+                    <li>• "Génère une revue de presse sur la technologie"</li>
+                    <li>• "Résume l'actualité économique de la semaine"</li>
+                  </ul>
+                </div>
               </div>
             ) : (
               <div className="w-full max-w-4xl flex flex-col gap-6">
@@ -267,10 +306,16 @@ export default function ChatApplication() {
                       {msg.role === 'user' ? <User size={16} /> : <Bot size={20} />}
                     </div>
                     <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} max-w-[80%]`}>
-                      <div className={`p-4 rounded-xl text-sm ${msg.role === 'user' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-800'}`}>
-                        <div className="prose prose-sm max-w-none">
+                      <div className={`p-4 rounded-xl text-sm relative ${msg.role === 'user' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-800'}`}>
+                        <div className="prose prose-sm max-w-none mb-4">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                         </div>
+                        {/* HEURE EN BAS A GAUCHE DU MESSAGE (12px 400) */}
+                        {msg.time && (
+                          <div className="text-[12px] font-normal text-gray-400 absolute bottom-1 left-4">
+                            {msg.time}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -297,9 +342,12 @@ export default function ChatApplication() {
                 <div className="flex flex-col gap-6">
                   {pressReviews.map((review, idx) => (
                     <div key={idx} className="bg-white rounded-xl shadow-sm p-8 relative">
-                      {/* BOUTON COPIER ALIGNÉ AVEC LE TITRE */}
-                      <button className="absolute top-8 right-8 bg-[#272930] text-white px-4 py-2 rounded text-sm hover:bg-gray-800 flex items-center gap-2">
-                        Copier
+                      {/* BOUTON COPIER FONCTIONNEL */}
+                      <button 
+                        onClick={() => handleCopyReview(review, idx)}
+                        className="absolute top-8 right-8 bg-[#272930] text-white px-4 py-2 rounded text-sm hover:bg-gray-800 flex items-center gap-2 transition-all"
+                      >
+                        {copiedIndex === idx ? <><Check size={16} /> Copté !</> : "Copier"}
                       </button>
                       
                       {/* TITRE : IBM Plex Sans, weight 400, 16px, #0A0A0A */}
@@ -308,7 +356,7 @@ export default function ChatApplication() {
                       </h3>
                       
                       {/* DATE : Inter, weight 400, 14px, #717182 */}
-                      <div className="text-[14px] font-normal text-[#717182] flex items-center gap-2 mt-1 mb-6 font-['Inter']">
+                      <div className="text-[14px] font-normal text-[#717182] flex items-center gap-2 mt-1 mb-6">
                         <Calendar size={14} /> {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                       </div>
                       

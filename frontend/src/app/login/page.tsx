@@ -47,7 +47,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[#1a1b23] px-4 overflow-hidden">
+    <div className="relative flex min-h-screen items-center justify-center bg-[#1a1b23] px-4 overflow-hidden font-['Inter']">
       {/* Motif de grille sombre d'arrière-plan */}
       <div
         className="absolute inset-0 opacity-20 pointer-events-none"
@@ -62,10 +62,10 @@ export default function LoginPage() {
 
       <div className="relative z-10 w-full max-w-[420px] rounded-2xl bg-white p-10 shadow-2xl">
         <div className="text-center">
-          <h1 className="flex items-center justify-center gap-2 text-xl font-bold tracking-wider text-[#7c5cfc]">
-            NEWSFOUNDRY <Bot size={20} /><span className="text-lg">🤖</span>
+          <h1 className="flex items-center justify-center gap-2 text-[17px] font-normal tracking-wider text-[#803CDA]">
+            NEWSFOUNDRY <Bot size={20} />
           </h1>
-          <p className="mt-2 text-xs leading-relaxed text-gray-500">
+          <p className="mt-2 text-[14px] font-normal leading-relaxed text-[#717182]">
             Connectez-vous pour accéder à votre assistant <br />
             d'actualités IA
           </p>
@@ -84,7 +84,7 @@ export default function LoginPage() {
           <div>
             <label
               htmlFor="email"
-              className="block text-xs font-medium text-gray-700 mb-1.5"
+              className="block text-[16px] font-normal text-[#2A2A31] mb-1.5"
             >
               Adresse email
             </label>
@@ -96,7 +96,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="block w-full rounded-lg bg-[#ebf0f5] border-0 px-3.5 py-2.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#7c5cfc]"
+              className="block w-full rounded-lg bg-[#ECEEF2] border-0 px-4 py-3 text-[16px] font-normal text-[#717182] placeholder-[#717182] focus:outline-none focus:ring-2 focus:ring-[#803CDA]"
               placeholder="votre.email@exemple.com"
             />
           </div>
@@ -104,7 +104,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full rounded-lg bg-[#272930] py-2.5 text-xs font-medium text-white transition-colors hover:bg-[#1e2025] focus:outline-none focus:ring-2 focus:ring-[#272930] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-2"
+            className="w-full rounded-lg bg-[#2A2A31] py-3 text-[14px] font-normal text-white transition-colors hover:bg-[#717182] focus:outline-none focus:ring-2 focus:ring-[#272930] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 mt-2"
           >
             {isLoading ? "Connexion..." : "Se connecter"}
           </button>
