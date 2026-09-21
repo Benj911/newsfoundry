@@ -78,7 +78,6 @@ export default function ChatApplication() {
         const data = await res.json();
         const formattedMessages = data.messages.map((m: any) => ({
           ...m,
-          // Utilisation de l'horodatage serveur si présent, sinon fallback
           time: m.created_at 
             ? new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) 
             : new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
@@ -100,7 +99,6 @@ export default function ChatApplication() {
     const currentTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     setInputText("");
     
-    // Affichage optimiste
     setMessages(prev => [...prev, { role: "user", content: userMessage, time: currentTime }]);
     setIsLoading(true);
     setErrorMessage(null);
@@ -184,7 +182,6 @@ export default function ChatApplication() {
   };
 
   const handleCopyReview = (review: any, index: number) => {
-    // Utilisation de created_at pour la date de la revue si disponible
     const reviewDate = review.created_at ? new Date(review.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
     let textToCopy = `${review.title}\nDate : ${reviewDate}\n\nSynthèse générale :\n${review.general_summary}\n\n`;
     if (review.articles) {
@@ -212,7 +209,6 @@ export default function ChatApplication() {
         </div>
         <div className="flex-1 overflow-y-auto">
           {chatsList.map((chat) => {
-            // Affichage de la vraie date de la discussion issue du backend
             const displayDate = chat.updated_at || chat.created_at 
               ? new Date(chat.updated_at || chat.created_at).toLocaleDateString('fr-FR')
               : new Date().toLocaleDateString('fr-FR');
@@ -229,7 +225,11 @@ export default function ChatApplication() {
             );
           })}
         </div>
-        <button onClick={handleLogout} className="p-4 flex items-center gap-2 text-[14px] font-normal text-[#2A2A31] hover:text-gray-900 border-t border-gray-200">
+        {/* BOUTON DÉCONNEXION : Hauteur fixée à 105px pour s'aligner avec la barre de saisie */}
+        <button 
+          onClick={handleLogout} 
+          className="flex items-center gap-2 px-6 h-[105px] shrink-0 w-full text-[14px] font-normal text-[#2A2A31] hover:text-gray-900 hover:bg-gray-50 transition-colors border-t border-gray-200"
+        >
           <LogOut size={16} /> Se déconnecter
         </button>
       </aside>
@@ -265,7 +265,6 @@ export default function ChatApplication() {
               </button>
             </div>
           ) : (
-            // HEADER MODIFIÉ : Structure avec titre et sous-titre
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => {setActiveChat(null); setMessages([]); setActiveTab('chat');}} 
@@ -280,11 +279,10 @@ export default function ChatApplication() {
             </div>
           )}
 
-          {/* BOUTON GÉNÉRER MODIFIÉ : Dimensions 290px x 61px */}
           {activeChat && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 bg-[#803CDA] text-white rounded-md text-[16px] font-normal hover:bg-[#6F32BE] transition-colors shadow-sm w-[290px] h-[61px] shrink-0"
+              className="flex items-center justify-center gap-2 bg-[#803CDA] text-white rounded-md text-[16px] font-normal hover:bg-[#717182] transition-colors shadow-sm w-[290px] h-[61px] shrink-0"
             >
               <FileText size={16} /> Générer une revue de presse
             </button>
@@ -306,7 +304,7 @@ export default function ChatApplication() {
                   Posez-moi des questions sur l'actualité récente ou demandez-moi de générer une revue de presse sur un sujet spécifique.
                 </p>
 
-                <div className="text-left bg-gray-50 p-6 rounded-lg border border-gray-100 max-w-lg mx-auto">
+                <div className="text-left p-6 max-w-lg mx-auto">
                   <div className="text-[14px] font-bold text-[#717182] mb-3">Exemples :</div>
                   <ul className="space-y-2 text-[14px] font-normal text-[#717182]">
                     <li>• "Quelles sont les dernières nouvelles en politique ?"</li>
@@ -397,9 +395,9 @@ export default function ChatApplication() {
           )}
         </div>
 
-        {/* BARRE DE SAISIE FIXE ET OPAQUE AU FOND BLANC */}
-        <div className="p-6 bg-white border-t border-gray-200 shrink-0 w-full z-20">
-          <div className="max-w-4xl mx-auto relative flex gap-2">
+        {/* BARRE DE SAISIE FIXE : Hauteur fixée à 105px pour s'aligner avec le bouton déconnexion */}
+        <div className="px-6 bg-white border-t border-gray-200 shrink-0 w-full z-20 h-[105px] flex flex-col justify-center">
+          <div className="max-w-4xl mx-auto relative flex gap-2 w-full">
             <input 
               type="text" 
               value={inputText}
@@ -409,10 +407,11 @@ export default function ChatApplication() {
               className={`w-full py-4 pl-4 pr-14 rounded-lg bg-white border border-gray-200 focus:outline-none focus:border-[#803CDA] shadow-sm transition-colors ${activeTab === 'reviews' ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`}
               disabled={isLoading || activeTab === 'reviews'}
             />
+            {/* BOUTON D'ENVOI : Parfaitement centré verticalement via top-1/2 et -translate-y-1/2 */}
             <button 
               onClick={handleSendMessage}
               disabled={isLoading || activeTab === 'reviews'}
-              className="absolute right-2 top-2 p-2 rounded-md text-white bg-[#803CDA] hover:bg-[#6F32BE] disabled:bg-gray-300 transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-md text-white bg-[#803CDA] hover:bg-[#2a2a31] disabled:bg-gray-300 transition-colors"
             >
               <Send size={18} />
             </button>

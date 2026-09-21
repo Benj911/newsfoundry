@@ -4,8 +4,7 @@ NewsFoundry est une application web permettant d'interagir avec un assistant d'a
 
 🔗 Liens de Production
 
-Frontend (Vercel) : (https://newsfoundry-aiwm04erv-benj911s-projects.vercel.app/)
-Backend & BDD (Railway) : https://newsfoundry-production-35c3.up.railway.app
+Frontend (Vercel) : (https://newsfoundry-one.vercel.app/)
 
 📂 Architecture du Projet
 
@@ -54,16 +53,3 @@ Ces tests sont exécutés automatiquement via GitHub Actions (CI/CD) à chaque c
 Pour lancer les tests localement (Bash) :
 cd backend
 uv run pytest
-
-🚀 Optimisation des Performances
-Piste d'amélioration          Détails
-
-Métrique                      Temps de création d'une nouvelle discussion (Actuellement ~1500ms).
-
-Diagnostic                    À chaque POST /chats, le backend appelle WorldNewsAPI en synchrone pour injecter l'actualité du jour, 
-                              bloquant la réponse UI.
-
-Implémentation                Mise en cache du résultat de fetch_daily_news() avec alru_cache ou Redis. 
-                              L'actualité globale ne changeant pas chaque  seconde, un TTL (Time To Live) de 1 heure est suffisant.
-
-Objectif Mesurable            Réduire la latence de création d'un chat à < 100ms pour une expérience utilisateur instantanée.
