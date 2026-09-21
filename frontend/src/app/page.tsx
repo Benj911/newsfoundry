@@ -76,10 +76,12 @@ export default function ChatApplication() {
       });
       if (res.ok) {
         const data = await res.json();
-        // On associe une heure fictive ou actuelle si non présente
         const formattedMessages = data.messages.map((m: any) => ({
           ...m,
-          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          // Utilisation de l'horodatage serveur si présent, sinon fallback
+          time: m.created_at 
+            ? new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) 
+            : new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
         }));
         setMessages(formattedMessages);
       } else {
@@ -97,6 +99,8 @@ export default function ChatApplication() {
     const userMessage = inputText;
     const currentTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     setInputText("");
+    
+    // Affichage optimiste
     setMessages(prev => [...prev, { role: "user", content: userMessage, time: currentTime }]);
     setIsLoading(true);
     setErrorMessage(null);
@@ -128,7 +132,9 @@ export default function ChatApplication() {
         const dataMessage = await resMessage.json();
         const formattedMessages = dataMessage.messages.map((m: any) => ({
           ...m,
-          time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          time: m.created_at 
+            ? new Date(m.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) 
+            : new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
         }));
         setMessages(formattedMessages);
         fetchChatsList(token);
@@ -178,7 +184,9 @@ export default function ChatApplication() {
   };
 
   const handleCopyReview = (review: any, index: number) => {
-    let textToCopy = `${review.title}\nDate : ${new Date().toLocaleDateString('fr-FR')}\n\nSynthèse générale :\n${review.general_summary}\n\n`;
+    // Utilisation de created_at pour la date de la revue si disponible
+    const reviewDate = review.created_at ? new Date(review.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+    let textToCopy = `${review.title}\nDate : ${reviewDate}\n\nSynthèse générale :\n${review.general_summary}\n\n`;
     if (review.articles) {
       review.articles.forEach((art: any) => {
         textToCopy += `- ${art.title} : ${art.summary}\n`;
@@ -203,16 +211,23 @@ export default function ChatApplication() {
           NewsFoundry <Bot size={20} />
         </div>
         <div className="flex-1 overflow-y-auto">
-          {chatsList.map((chat) => (
-            <button 
-              key={chat.id} 
-              onClick={() => loadSpecificChat(chat.id)}
-              className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${activeChat === chat.id ? 'bg-gray-50 border-l-4 border-l-[#803CDA]' : ''}`}
-            >
-              <div className="text-[16px] font-normal text-[#2A2A31] truncate">{chat.preview || "Nouvelle discussion"}</div>
-              <div className="text-[12px] font-normal text-[#717182] mt-1">{new Date().toLocaleDateString('fr-FR')}</div>
-            </button>
-          ))}
+          {chatsList.map((chat) => {
+            // Affichage de la vraie date de la discussion issue du backend
+            const displayDate = chat.updated_at || chat.created_at 
+              ? new Date(chat.updated_at || chat.created_at).toLocaleDateString('fr-FR')
+              : new Date().toLocaleDateString('fr-FR');
+              
+            return (
+              <button 
+                key={chat.id} 
+                onClick={() => loadSpecificChat(chat.id)}
+                className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${activeChat === chat.id ? 'bg-gray-50 border-l-4 border-l-[#803CDA]' : ''}`}
+              >
+                <div className="text-[16px] font-normal text-[#2A2A31] truncate">{chat.preview || "Nouvelle discussion"}</div>
+                <div className="text-[12px] font-normal text-[#717182] mt-1">{displayDate}</div>
+              </button>
+            );
+          })}
         </div>
         <button onClick={handleLogout} className="p-4 flex items-center gap-2 text-[14px] font-normal text-[#2A2A31] hover:text-gray-900 border-t border-gray-200">
           <LogOut size={16} /> Se déconnecter
@@ -238,7 +253,7 @@ export default function ChatApplication() {
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button 
                 onClick={() => setActiveTab('chat')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-[14px] transition-colors ${activeTab === 'chat' ? 'bg-white text-gray-800 shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 font-normal'}`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-[14px] transition-colors ${activeTab === 'chat' ? 'bg-[#803CDA] text-white shadow-sm font-bold' : 'text-gray-500 hover:text-gray-700 font-normal'}`}
               >
                 <MessageSquare size={16} /> Chat
               </button>
@@ -250,21 +265,26 @@ export default function ChatApplication() {
               </button>
             </div>
           ) : (
+            // HEADER MODIFIÉ : Structure avec titre et sous-titre
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => {setActiveChat(null); setMessages([]); setActiveTab('chat');}} 
-                className="text-gray-400 hover:text-gray-600 mr-2 flex items-center gap-2 text-sm font-medium"
+                className="text-[#000000] hover:text-gray-600 transition-colors mt-1"
               >
-                <ArrowLeft size={18} /> Retour
+                <ArrowLeft size={20} strokeWidth={1.5} />
               </button>
-              <h2 className="font-semibold text-gray-800">Nouvelle discussion</h2>
+              <div className="flex flex-col">
+                <h2 className="text-[18px] font-normal text-[#000000] font-['IBM_Plex_Sans'] leading-tight">Nouvelle discussion</h2>
+                <span className="text-[14px] font-normal text-[#9999AB] font-['Inter'] leading-tight mt-0.5">Conversation active</span>
+              </div>
             </div>
           )}
 
+          {/* BOUTON GÉNÉRER MODIFIÉ : Dimensions 290px x 61px */}
           {activeChat && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-[#803CDA] text-white px-4 py-2 rounded-md text-[16px] font-normal hover:bg-[#6F32BE] transition-colors shadow-sm"
+              className="flex items-center justify-center gap-2 bg-[#803CDA] text-white rounded-md text-[16px] font-normal hover:bg-[#6F32BE] transition-colors shadow-sm w-[290px] h-[61px] shrink-0"
             >
               <FileText size={16} /> Générer une revue de presse
             </button>
@@ -278,17 +298,14 @@ export default function ChatApplication() {
               <div className="bg-white rounded-xl shadow-sm p-10 max-w-2xl w-full text-center mt-10">
                 <Bot size={48} className="text-[#803CDA] mx-auto mb-6" />
                 
-                {/* TITRE PRINCIPAL : IBM Plex Sans 32px 400 #803CDA */}
                 <h1 className="text-[32px] font-normal text-[#803CDA] mb-4 font-['IBM_Plex_Sans']">
                   Assistant Revue de Presse IA
                 </h1>
                 
-                {/* TEXTE DESCRIPTIF : Inter 400 16px #838392 */}
                 <p className="text-[16px] font-normal text-[#838392] mb-8 leading-relaxed max-w-md mx-auto">
                   Posez-moi des questions sur l'actualité récente ou demandez-moi de générer une revue de presse sur un sujet spécifique.
                 </p>
 
-                {/* EXEMPLES */}
                 <div className="text-left bg-gray-50 p-6 rounded-lg border border-gray-100 max-w-lg mx-auto">
                   <div className="text-[14px] font-bold text-[#717182] mb-3">Exemples :</div>
                   <ul className="space-y-2 text-[14px] font-normal text-[#717182]">
@@ -310,7 +327,6 @@ export default function ChatApplication() {
                         <div className="prose prose-sm max-w-none mb-4">
                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                         </div>
-                        {/* HEURE EN BAS A GAUCHE DU MESSAGE (12px 400) */}
                         {msg.time && (
                           <div className="text-[12px] font-normal text-gray-400 absolute bottom-1 left-4">
                             {msg.time}
@@ -340,41 +356,41 @@ export default function ChatApplication() {
                 </div>
               ) : (
                 <div className="flex flex-col gap-6">
-                  {pressReviews.map((review, idx) => (
-                    <div key={idx} className="bg-white rounded-xl shadow-sm p-8 relative">
-                      {/* BOUTON COPIER FONCTIONNEL */}
-                      <button 
-                        onClick={() => handleCopyReview(review, idx)}
-                        className="absolute top-8 right-8 bg-[#272930] text-white px-4 py-2 rounded text-sm hover:bg-gray-800 flex items-center gap-2 transition-all"
-                      >
-                        {copiedIndex === idx ? <><Check size={16} /> Copté !</> : "Copier"}
-                      </button>
-                      
-                      {/* TITRE : IBM Plex Sans, weight 400, 16px, #0A0A0A */}
-                      <h3 className="text-[16px] font-normal text-[#0A0A0A] uppercase tracking-wide pr-32 font-['IBM_Plex_Sans']">
-                        {review.title}
-                      </h3>
-                      
-                      {/* DATE : Inter, weight 400, 14px, #717182 */}
-                      <div className="text-[14px] font-normal text-[#717182] flex items-center gap-2 mt-1 mb-6">
-                        <Calendar size={14} /> {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                      </div>
-                      
-                      <div className="text-sm text-gray-700 leading-relaxed mb-6 font-medium">
-                        **Synthèse générale :** <br/>
-                        {review.general_summary}
-                      </div>
+                  {pressReviews.map((review, idx) => {
+                    const reviewDisplayDate = review.created_at ? new Date(review.created_at).toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    return (
+                      <div key={idx} className="bg-white rounded-xl shadow-sm p-8 relative">
+                        <button 
+                          onClick={() => handleCopyReview(review, idx)}
+                          className="absolute top-8 right-8 bg-[#272930] text-white px-4 py-2 rounded text-sm hover:bg-gray-800 flex items-center gap-2 transition-all"
+                        >
+                          {copiedIndex === idx ? <><Check size={16} /> Copié !</> : "Copier"}
+                        </button>
+                        
+                        <h3 className="text-[16px] font-normal text-[#0A0A0A] uppercase tracking-wide pr-32 font-['IBM_Plex_Sans']">
+                          {review.title}
+                        </h3>
+                        
+                        <div className="text-[14px] font-normal text-[#717182] flex items-center gap-2 mt-1 mb-6">
+                          <Calendar size={14} /> {reviewDisplayDate}
+                        </div>
+                        
+                        <div className="text-sm text-gray-700 leading-relaxed mb-6 font-medium">
+                          **Synthèse générale :** <br/>
+                          {review.general_summary}
+                        </div>
 
-                      <div className="space-y-4">
-                        {review.articles && review.articles.map((article: any, i: number) => (
-                          <div key={i} className="text-sm">
-                            <span className="font-semibold text-gray-900">• {article.title} : </span>
-                            <span className="text-gray-600">{article.summary}</span>
-                          </div>
-                        ))}
+                        <div className="space-y-4">
+                          {review.articles && review.articles.map((article: any, i: number) => (
+                            <div key={i} className="text-sm">
+                              <span className="font-semibold text-gray-900">• {article.title} : </span>
+                              <span className="text-gray-600">{article.summary}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
