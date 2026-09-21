@@ -282,7 +282,7 @@ export default function ChatApplication() {
           {activeChat && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 bg-[#803CDA] text-white rounded-md text-[16px] font-normal hover:bg-[#717182] transition-colors shadow-sm w-[290px] h-[61px] shrink-0"
+              className="flex items-center justify-center gap-2 bg-[#803CDA] text-white rounded-md text-[16px] font-normal hover:bg-[#2A2A31] transition-colors shadow-sm w-[290px] h-[61px] shrink-0"
             >
               <FileText size={16} /> Générer une revue de presse
             </button>
