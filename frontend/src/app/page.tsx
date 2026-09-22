@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * Module : Application Principale (Dashboard)
+ * ===========================================
+ * Ce composant représente l'interface principale de NewsFoundry.
+ * Il intègre la navigation latérale (historique des discussions), 
+ * la zone de chat interactive, la gestion des revues de presse générées par l'IA,
+ * et la communication complète avec l'API backend.
+ */
+
 import { useState, useEffect } from "react";
 import { Send, LogOut, Bot, User, ArrowLeft, FileText, MessageSquare, Loader2, X, AlertCircle, Calendar, Check } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -7,37 +16,65 @@ import ReactMarkdown from "react-markdown";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://newsfoundry-production-35c3.up.railway.app";
 
 export default function ChatApplication() {
+  
+  // ============================================================================
+  // ÉTATS LOCAUX (STATE)
+  // ============================================================================
+  
+  // Authentification et Navigation
   const [token, setToken] = useState<string | null>(null);
   const [activeChat, setActiveChat] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'chat' | 'reviews'>('chat');
+  
+  // Données de Chat
   const [inputText, setInputText] = useState("");
   const [chatsList, setChatsList] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const [activeTab, setActiveTab] = useState<'chat' | 'reviews'>('chat');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // Données de Revue de Presse
   const [reviewTopic, setReviewTopic] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [pressReviews, setPressReviews] = useState<any[]>([]);
+  
+  // États de l'Interface Utilisateur (UI)
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
 
+  // ============================================================================
+  // CYCLE DE VIE ET EFFETS
+  // ============================================================================
+
   useEffect(() => {
+    // Vérification de la session au montage du composant
     const storedToken = localStorage.getItem("token");
     if (!storedToken) {
       window.location.href = "/login";
       return;
     }
     setToken(storedToken);
+    
+    // Chargement initial des données de l'utilisateur
     fetchChatsList(storedToken);
     fetchAllReviews(storedToken);
   }, []);
 
+  // ============================================================================
+  // APPELS API ET LOGIQUE MÉTIER
+  // ============================================================================
+
+  /**
+   * Affiche une notification d'erreur temporaire (5 secondes).
+   */
   const showError = (message: string) => {
     setErrorMessage(message);
     setTimeout(() => setErrorMessage(null), 5000);
   };
 
+  /**
+   * Récupère la liste globale des discussions pour la barre latérale.
+   */
   const fetchChatsList = async (authToken: string) => {
     try {
       const res = await fetch(`${API_URL}/chats`, {
@@ -52,6 +89,9 @@ export default function ChatApplication() {
     }
   };
 
+  /**
+   * Récupère l'ensemble des revues de presse de l'utilisateur.
+   */
   const fetchAllReviews = async (authToken: string) => {
     try {
       const res = await fetch(`${API_URL}/press-reviews`, {
@@ -66,16 +106,22 @@ export default function ChatApplication() {
     }
   };
 
+  /**
+   * Charge une discussion spécifique et bascule l'interface sur l'onglet chat.
+   */
   const loadSpecificChat = async (chatId: number) => {
     setActiveChat(chatId);
     setActiveTab('chat');
     setErrorMessage(null);
+    
     try {
       const res = await fetch(`${API_URL}/chats/${chatId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
+        
+        // Formatage des horodatages serveur en heure locale lisible (HH:MM)
         const formattedMessages = data.messages.map((m: any) => ({
           ...m,
           time: m.created_at 
@@ -92,6 +138,10 @@ export default function ChatApplication() {
     }
   };
 
+  /**
+   * Traite l'envoi d'un nouveau message à l'IA.
+   * Gère la création de chat à la volée s'il s'agit du premier message.
+   */
   const handleSendMessage = async () => {
     if (!inputText.trim() || !token) return;
 
@@ -99,6 +149,7 @@ export default function ChatApplication() {
     const currentTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
     setInputText("");
     
+    // Mise à jour optimiste de l'interface (affichage immédiat du message utilisateur)
     setMessages(prev => [...prev, { role: "user", content: userMessage, time: currentTime }]);
     setIsLoading(true);
     setErrorMessage(null);
@@ -106,6 +157,7 @@ export default function ChatApplication() {
     try {
       let currentChatId = activeChat;
       
+      // Initialisation d'une nouvelle session de chat si aucune n'est active
       if (!currentChatId) {
         const resCreate = await fetch(`${API_URL}/chats`, {
           method: "POST",
@@ -117,6 +169,7 @@ export default function ChatApplication() {
         setActiveChat(currentChatId);
       }
 
+      // Envoi du message au backend pour traitement par l'agent IA
       const resMessage = await fetch(`${API_URL}/chats/${currentChatId}/messages`, {
         method: "POST",
         headers: {
@@ -135,6 +188,8 @@ export default function ChatApplication() {
             : new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
         }));
         setMessages(formattedMessages);
+        
+        // Actualisation de la sidebar pour afficher le nouveau chat ou la nouvelle date
         fetchChatsList(token);
       } else {
         throw new Error("Erreur lors de la réponse de l'IA");
@@ -142,12 +197,16 @@ export default function ChatApplication() {
     } catch (error) {
       console.error("Erreur d'envoi:", error);
       showError("Une erreur est survenue lors de la communication avec l'IA.");
+      // Annulation de la mise à jour optimiste en cas d'échec
       setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
   };
 
+  /**
+   * Déclenche le pipeline RAG pour générer une revue de presse.
+   */
   const handleGenerateReview = async () => {
     if (!reviewTopic.trim() || !activeChat || !token) return;
     setIsGenerating(true);
@@ -164,6 +223,7 @@ export default function ChatApplication() {
       });
 
       if (res.ok) {
+        // Rafraîchissement des données et bascule sur l'onglet des revues
         await fetchAllReviews(token);
         setIsModalOpen(false);
         setReviewTopic("");
@@ -181,14 +241,20 @@ export default function ChatApplication() {
     }
   };
 
+  // ============================================================================
+  // HANDLERS UTILITAIRES
+  // ============================================================================
+
   const handleCopyReview = (review: any, index: number) => {
     const reviewDate = review.created_at ? new Date(review.created_at).toLocaleDateString('fr-FR') : new Date().toLocaleDateString('fr-FR');
+    
     let textToCopy = `${review.title}\nDate : ${reviewDate}\n\nSynthèse générale :\n${review.general_summary}\n\n`;
     if (review.articles) {
       review.articles.forEach((art: any) => {
         textToCopy += `- ${art.title} : ${art.summary}\n`;
       });
     }
+    
     navigator.clipboard.writeText(textToCopy);
     setCopiedIndex(index);
     setTimeout(() => setCopiedIndex(null), 2000);
@@ -199,14 +265,19 @@ export default function ChatApplication() {
     window.location.href = "/login";
   };
 
+  // ============================================================================
+  // RENDU VISUEL (RENDER)
+  // ============================================================================
+
   return (
     <div className="flex h-screen bg-[#F3F4F6] text-gray-800 font-['Inter']">
       
-      {/* SIDEBAR */}
+      {/* SECTION : NAVIGATION LATÉRALE (SIDEBAR) */}
       <aside className="w-64 bg-white flex flex-col border-r border-gray-200">
         <div className="p-6 text-[#803CDA] font-bold flex items-center gap-2 text-lg uppercase tracking-wider border-b border-gray-100">
           NewsFoundry <Bot size={20} />
         </div>
+        
         <div className="flex-1 overflow-y-auto">
           {chatsList.map((chat) => {
             const displayDate = chat.updated_at || chat.created_at 
@@ -225,7 +296,7 @@ export default function ChatApplication() {
             );
           })}
         </div>
-        {/* BOUTON DÉCONNEXION : Hauteur fixée à 105px pour s'aligner avec la barre de saisie */}
+        
         <button 
           onClick={handleLogout} 
           className="flex items-center gap-2 px-6 h-[105px] shrink-0 w-full text-[14px] font-normal text-[#2A2A31] hover:text-gray-900 hover:bg-gray-50 transition-colors border-t border-gray-200"
@@ -234,10 +305,10 @@ export default function ChatApplication() {
         </button>
       </aside>
 
-      {/* ZONE PRINCIPALE */}
+      {/* SECTION : ZONE PRINCIPALE DE L'APPLICATION */}
       <main className="flex-1 flex flex-col relative h-screen overflow-hidden">
         
-        {/* ALERTE D'ERREUR VISUELLE */}
+        {/* Composant conditionnel d'erreur */}
         {errorMessage && (
           <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-lg flex items-start gap-3 animate-fade-in">
             <AlertCircle size={20} className="shrink-0 mt-0.5" />
@@ -248,6 +319,7 @@ export default function ChatApplication() {
           </div>
         )}
 
+        {/* En-tête (Header) dynamique selon le contexte */}
         <header className="h-20 bg-white flex items-center px-8 border-b border-gray-200 justify-between shrink-0">
           {!activeChat ? (
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -289,10 +361,11 @@ export default function ChatApplication() {
           )}
         </header>
 
-        {/* ZONE DE DÉFILEMENT */}
+        {/* Espace de contenu défilant (Chat ou Revues) */}
         <div className="flex-1 overflow-y-auto p-8 flex flex-col items-center pb-28">
           {activeTab === 'chat' ? (
             !activeChat && messages.length === 0 ? (
+              // Vue initiale : Écran d'accueil
               <div className="bg-white rounded-xl shadow-sm p-10 max-w-2xl w-full text-center mt-10">
                 <Bot size={48} className="text-[#803CDA] mx-auto mb-6" />
                 
@@ -314,6 +387,7 @@ export default function ChatApplication() {
                 </div>
               </div>
             ) : (
+              // Vue active : Liste des messages du chat
               <div className="w-full max-w-4xl flex flex-col gap-6">
                 {messages.map((msg, idx) => (
                   <div key={idx} className={`flex items-start gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -344,6 +418,7 @@ export default function ChatApplication() {
               </div>
             )
           ) : (
+            // Vue alternative : Historique des revues de presse générées
             <div className="w-full max-w-4xl">
               <h2 className="text-2xl font-semibold text-gray-800 mb-2">Revues de Presse</h2>
               <p className="text-gray-500 text-sm mb-8">Consultez et gérez vos revues de presse générées par l'IA</p>
@@ -395,7 +470,7 @@ export default function ChatApplication() {
           )}
         </div>
 
-        {/* BARRE DE SAISIE FIXE : Hauteur fixée à 105px pour s'aligner avec le bouton déconnexion */}
+        {/* Barre de saisie ancrée en bas */}
         <div className="px-6 bg-white border-t border-gray-200 shrink-0 w-full z-20 h-[105px] flex flex-col justify-center">
           <div className="max-w-4xl mx-auto relative flex gap-2 w-full">
             <input 
@@ -407,7 +482,6 @@ export default function ChatApplication() {
               className={`w-full py-4 pl-4 pr-14 rounded-lg bg-white border border-gray-200 focus:outline-none focus:border-[#803CDA] shadow-sm transition-colors ${activeTab === 'reviews' ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`}
               disabled={isLoading || activeTab === 'reviews'}
             />
-            {/* BOUTON D'ENVOI : Parfaitement centré verticalement via top-1/2 et -translate-y-1/2 */}
             <button 
               onClick={handleSendMessage}
               disabled={isLoading || activeTab === 'reviews'}
@@ -419,7 +493,7 @@ export default function ChatApplication() {
         </div>
       </main>
 
-      {/* MODALE DE GÉNÉRATION */}
+      {/* SECTION : MODALE DE GÉNÉRATION DE REVUE */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl w-full max-w-md p-8 relative shadow-2xl">

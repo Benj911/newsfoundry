@@ -1,5 +1,13 @@
+# =============================================================================
+# WORKFLOW GITHUB ACTIONS : TESTS DU BACKEND
+# =============================================================================
+# Ce fichier définit le pipeline d'intégration continue (CI). 
+# Il garantit que le code soumis ne casse pas les fonctionnalités existantes 
+# avant un éventuel déploiement.
+
 name: Backend Tests
 
+# Déclenchement automatique à chaque push (envoi de code) sur la branche principale
 on:
   push:
     branches: [ main ]
@@ -9,22 +17,30 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
+        # Spécifie que toutes les commandes doivent s'exécuter dans le dossier backend
         working-directory: ./backend
         
     steps:
+    # 1. Récupération du code source depuis le dépôt GitHub
     - uses: actions/checkout@v4
     
+    # 2. Configuration de l'environnement Python (version 3.13)
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.13'
         
+    # 3. Installation de "uv", un gestionnaire de paquets et d'environnements 
+    # écrit en Rust, beaucoup plus rapide que pip.
     - name: Install uv
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
       
+    # 4. Installation des dépendances du projet définies dans pyproject.toml / uv.lock
     - name: Install dependencies
       run: uv sync
       
+    # 5. Exécution des tests d'intégration avec des variables d'environnement factices
+    # pour isoler les tests de la base de données de production.
     - name: Run Pytest
       env:
         DATABASE_URL: sqlite:///./test.db

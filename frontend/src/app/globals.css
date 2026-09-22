@@ -1,16 +1,40 @@
+/**
+ * Module : Styles Globaux (Global CSS)
+ * ====================================
+ * Ce fichier constitue le point d'entrée stylistique de l'application.
+ * Il charge les typographies externes, initialise le framework Tailwind CSS (v4),
+ * et configure le système de variables pour la gestion des thèmes (clair/sombre).
+ */
+
+/* ============================================================================
+ * 1. TYPOGRAPHIES EXTERNES
+ * ============================================================================ */
+
+/* Importation depuis Google Fonts des familles "IBM Plex Sans" (titres) 
+   et "Inter" (corps de texte) avec les graisses régulières (400) et grasses (700) */
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;700&family=Inter:wght@400;700&display=swap');
+
+
+/* ============================================================================
+ * 2. INITIALISATION DE TAILWIND CSS
+ * ============================================================================ */
+
+/* Directive d'importation native requise par Tailwind CSS v4 */
 @import "tailwindcss";
 
+
+/* ============================================================================
+ * 3. SYSTÈME DE THÈMES (VARIABLES CSS NATIVES)
+ * ============================================================================ */
+
+/* Configuration par défaut (Thème clair) */
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
-
+/* Surcharge conditionnelle : Détection des préférences système de l'utilisateur
+   (OS ou navigateur configuré en mode sombre) */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -18,6 +42,26 @@
   }
 }
 
+
+/* ============================================================================
+ * 4. CONFIGURATION DU MOTEUR TAILWIND (INTEGRATION v4)
+ * ============================================================================ */
+
+/* La directive @theme permet d'injecter dynamiquement des variables CSS natives 
+   dans le système de conception de Tailwind. Cela génère automatiquement des classes
+   comme 'bg-background' ou 'text-foreground' qui réagiront aux changements de thème. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+
+/* ============================================================================
+ * 5. STYLES DE BASE DU DOCUMENT (BASE LAYER)
+ * ============================================================================ */
+
+/* Application des variables globales et de la police de caractères par défaut
+   au niveau le plus haut de l'arbre DOM (Document Object Model). */
 body {
   background: var(--background);
   color: var(--foreground);
