@@ -150,10 +150,13 @@ async def list_chats(user_id: int = Depends(get_current_user_id), session: Sessi
     statement = select(Chat).where(Chat.user_id == user_id)
     chats = session.exec(statement).all()
     
+    # On ajoute created_at et updated_at dans la réponse de l'API
     return [
         {
             "id": c.id, 
-            "preview": c.messages[0]["content"] if c.messages else "Nouvelle discussion"
+            "preview": c.messages[0]["content"] if c.messages else "Nouvelle discussion",
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "updated_at": c.updated_at.isoformat() if hasattr(c, "updated_at") and c.updated_at else None
         } 
         for c in chats
     ]
